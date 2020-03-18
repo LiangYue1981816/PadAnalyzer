@@ -49,5 +49,24 @@ namespace CsDebugScript.Engine.SymbolProviders
 
             return null;
         }
+
+        public ISymbolProviderModule LoadModule(string location)
+        {
+            // Try to load PDB file into our own DIA session
+            string pdb = location;
+
+            if (!string.IsNullOrEmpty(pdb) && Path.GetExtension(pdb).ToLower() == ".pdb")
+            {
+                //try
+                {
+                    return new DiaModule(pdb, null);
+                }
+                //catch
+                {
+                }
+            }
+
+            return null;
+        }
     }
 }

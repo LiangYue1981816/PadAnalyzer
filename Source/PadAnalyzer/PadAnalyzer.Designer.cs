@@ -104,7 +104,7 @@
             // 
             // openPdbDialog
             // 
-            this.openPdbDialog.Filter = "Symbol files|*.nss;*.elf|All files|*.*";
+            this.openPdbDialog.Filter = "Symbol files|*.nss;*.elf;*.pdb|All files|*.*";
             // 
             // splitContainer2
             // 

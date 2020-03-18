@@ -131,7 +131,7 @@ namespace CsDebugScript.Engine.SymbolProviders
                 return Tuple.Create(name, (ulong)displacement);
             });
 
-            session.loadAddress = module.Address;
+            if (module != null) session.loadAddress = module.Address;
             enumTypeNames = new DictionaryCache<uint, Dictionary<ulong, string>>(GetEnumName);
         }
 
@@ -326,7 +326,10 @@ namespace CsDebugScript.Engine.SymbolProviders
                 {
                     type = GetTypeFromGlobalSpace(typeName);
                     if (type == null)
-                        type = BasicTypes[typeName];
+                    {
+                        if (!BasicTypes.TryGetValue(typeName, out type))
+                            type = GetTypeFromGlobalSpace(typeName);
+                    }
                 }
 
                 if (type != null)
@@ -846,7 +849,7 @@ namespace CsDebugScript.Engine.SymbolProviders
 
                 if (type.symTag == SymTagEnum.PointerType)
                 {
-                    type = type.type;
+                    //type = type.type;
                 }
 
                 var fields = typeFields[type.symIndexId];
@@ -1188,7 +1191,7 @@ namespace CsDebugScript.Engine.SymbolProviders
 
                 if (type.symTag == SymTagEnum.PointerType)
                 {
-                    type = type.type;
+                    //type = type.type;
                 }
 
                 var bases = type.GetBaseClasses();
@@ -1198,7 +1201,12 @@ namespace CsDebugScript.Engine.SymbolProviders
                 {
                     int offset = b.virtualBaseClass ? int.MinValue : b.offset;
 
-                    result.Add(b.name, Tuple.Create(GetTypeId(b.name), offset));
+                    uint btypeId;
+
+                    if (TryGetTypeId(b.name, out btypeId))
+                    {
+                        result.Add(b.name, Tuple.Create(btypeId, offset));
+                    }
                 }
 
                 return result;

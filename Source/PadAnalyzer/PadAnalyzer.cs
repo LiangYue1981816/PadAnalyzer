@@ -69,10 +69,16 @@ namespace PadAnalyzer
         {
             m_symbols.Clear();
 
-            CsDebugScript.DwarfSymbolProvider.DwarfSymbolProvider dw = new CsDebugScript.DwarfSymbolProvider.DwarfSymbolProvider();
-
-
-            sym = dw.LoadModule(fileName);
+            if (fileName.ToLower().EndsWith(".pdb"))
+            {
+                CsDebugScript.Engine.SymbolProviders.DiaSymbolProvider dw = new CsDebugScript.Engine.SymbolProviders.DiaSymbolProvider();
+                sym = dw.LoadModule(fileName);
+            }
+            else
+            {
+                CsDebugScript.DwarfSymbolProvider.DwarfSymbolProvider dw = new CsDebugScript.DwarfSymbolProvider.DwarfSymbolProvider();
+                sym = dw.LoadModule(fileName);
+            }
 
             try
             {
@@ -119,6 +125,7 @@ namespace PadAnalyzer
         SymbolInfo TryAddSymbol(uint typeId)
         {
             string name = sym.GetTypeName(typeId);
+
             uint size = sym.GetTypeSize(typeId);
             if (size > 0 && name != null)
             {
