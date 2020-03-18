@@ -624,7 +624,7 @@ namespace CsDebugScript.DwarfSymbolProvider
 
             if (type.Tag == DwarfTag.PointerType)
             {
-                type = GetType(type);
+                //type = GetType(type);
             }
 
             Queue<DwarfSymbol> baseClasses = new Queue<DwarfSymbol>();
@@ -1129,7 +1129,7 @@ namespace CsDebugScript.DwarfSymbolProvider
                     {
                         DwarfSymbol baseClass = GetType(child);
 
-                        if (!string.IsNullOrEmpty(baseClass.Name))
+                        if (baseClass.Offset != -1 && !string.IsNullOrEmpty(baseClass.Name))
                         {
                             DwarfVirtuality virtuality = (DwarfVirtuality)child.GetConstantAttribute(DwarfAttribute.Virtuality, (ulong)DwarfVirtuality.None);
                             int offset = virtuality == DwarfVirtuality.None ? DecodeDataMemberLocation(child) : int.MinValue;
@@ -1154,7 +1154,7 @@ namespace CsDebugScript.DwarfSymbolProvider
 
             if (type.Tag == DwarfTag.PointerType)
             {
-                type = GetType(type);
+                //type = GetType(type);
             }
 
             Queue<DwarfSymbol> baseClasses = new Queue<DwarfSymbol>();
@@ -1687,7 +1687,6 @@ namespace CsDebugScript.DwarfSymbolProvider
                                     globalVariables.TryAdd(fullName, symbol);
                                 }
                             }
-
                             // Check predicate if we should stop search
                             if (predicate(symbol))
                             {

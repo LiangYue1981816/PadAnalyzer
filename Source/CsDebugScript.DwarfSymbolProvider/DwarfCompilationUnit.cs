@@ -71,12 +71,22 @@ namespace CsDebugScript.DwarfSymbolProvider
 
                 if (code == 0)
                 {
+                    DwarfSymbol parent = parents.Peek();
+
+                    if (parent.Children.Count == 0 && (parent.Tag == DwarfTag.CompileUnit || parent.Tag == DwarfTag.Namespace))
+                    {
+                        symbols.Remove(parent);
+                        symbolsByOffset.Remove(parent.Offset);
+                    }
                     parents.Pop();
                     continue;
                 }
 
                 DataDescription description = dataDescriptionReader.GetDebugDataDescription(code);
+                
                 Dictionary<DwarfAttribute, DwarfAttributeValue> attributes = new Dictionary<DwarfAttribute, DwarfAttributeValue>();
+
+                bool skipSymbol = false;
 
                 foreach (DataDescriptionAttribute descriptionAttribute in description.Attributes)
                 {
@@ -186,6 +196,34 @@ namespace CsDebugScript.DwarfSymbolProvider
                             throw new Exception($"Unsupported DwarfFormat: {format}");
                     }
 
+                    bool skipAttribute = true;
+                    if (attribute == DwarfAttribute.Name || 
+                        attribute == DwarfAttribute.ByteSize ||
+                        attribute == DwarfAttribute.Type ||
+                        attribute == DwarfAttribute.DataMemberLocation ||
+                        // for inheritance
+                        attribute == DwarfAttribute.Virtuality ||
+                        // for array
+                        attribute == DwarfAttribute.Count ||
+                        attribute == DwarfAttribute.UpperBound)
+                    {
+                        skipAttribute = false;
+                    }
+
+                    if (attribute == DwarfAttribute.Declaration)
+                    {
+                        skipSymbol = true;
+                    }
+
+                    if (skipAttribute)
+                    {
+                        continue;
+                    }
+                    if (attribute == DwarfAttribute.Count && attributeValue.Type != DwarfAttributeValueType.Constant)
+                    {
+                        attributeValue.Type = DwarfAttributeValueType.Constant;
+                    }
+
                     if (attributes.ContainsKey(attribute))
                     {
                         if (attributes[attribute] != attributeValue)
@@ -199,6 +237,36 @@ namespace CsDebugScript.DwarfSymbolProvider
                     }
                 }
 
+
+                if (description.Tag != DwarfTag.BaseType &&
+                    description.Tag != DwarfTag.Typedef &&
+                    description.Tag != DwarfTag.PointerType &&
+                    description.Tag != DwarfTag.ClassType &&
+                    description.Tag != DwarfTag.StructureType &&
+                    description.Tag != DwarfTag.UnionType &&
+                    description.Tag != DwarfTag.EnumerationType &&
+                    description.Tag != DwarfTag.ArrayType &&
+                    description.Tag != DwarfTag.SubrangeType &&
+                    description.Tag != DwarfTag.Inheritance &&
+                    description.Tag != DwarfTag.Member &&
+                    description.Tag != DwarfTag.CompileUnit &&
+                    description.Tag != DwarfTag.Namespace)
+                {
+                    skipSymbol = true;
+                }
+
+                if (description.Tag == DwarfTag.PointerType)
+                {
+                    if (!attributes.ContainsKey(DwarfAttribute.ByteSize))
+                    {
+                        DwarfAttributeValue attributeValue = new DwarfAttributeValue();
+                        attributeValue.Type = DwarfAttributeValueType.Constant;
+                        attributeValue.Value = (ulong)8;
+
+                        attributes.Add(DwarfAttribute.ByteSize, attributeValue);
+                    }
+                }
+
                 DwarfSymbol symbol = new DwarfSymbol()
                 {
                     Tag = description.Tag,
@@ -206,16 +274,23 @@ namespace CsDebugScript.DwarfSymbolProvider
                     Offset = dataPosition,
                 };
 
-                symbolsByOffset.Add(symbol.Offset, symbol);
+                if (!skipSymbol) symbolsByOffset.Add(symbol.Offset, symbol);
 
                 if (parents.Count > 0)
                 {
-                    parents.Peek().Children.Add(symbol);
+                    if (!skipSymbol)
+                    {
+                        parents.Peek().Children.Add(symbol);
+                    }
+
                     symbol.Parent = parents.Peek();
                 }
                 else
                 {
-                    symbols.Add(symbol);
+                    if (!skipSymbol)
+                    {
+                        symbols.Add(symbol);
+                    }
                 }
 
                 if (description.HasChildren)
@@ -259,10 +334,15 @@ namespace CsDebugScript.DwarfSymbolProvider
                         {
                             DwarfSymbol reference;
 
+                            value.Type = DwarfAttributeValueType.ResolvedReference;
+
                             if (symbolsByOffset.TryGetValue((int)value.Address, out reference))
                             {
-                                value.Type = DwarfAttributeValueType.ResolvedReference;
                                 value.Value = reference;
+                            }
+                            else
+                            {
+                                value.Value = voidSymbol;
                             }
                         }
                         else if (value.Type == DwarfAttributeValueType.Address)
@@ -279,27 +359,6 @@ namespace CsDebugScript.DwarfSymbolProvider
                             Type = DwarfAttributeValueType.ResolvedReference,
                             Value = voidSymbol,
                         });
-                    }
-                }
-
-                // Merge specifications
-                foreach (DwarfSymbol symbol in Symbols)
-                {
-                    Dictionary<DwarfAttribute, DwarfAttributeValue> attributes = symbol.Attributes as Dictionary<DwarfAttribute, DwarfAttributeValue>;
-                    DwarfAttributeValue specificationValue;
-
-                    if (attributes.TryGetValue(DwarfAttribute.Specification, out specificationValue) && specificationValue.Type == DwarfAttributeValueType.ResolvedReference)
-                    {
-                        DwarfSymbol reference = specificationValue.Reference;
-                        Dictionary<DwarfAttribute, DwarfAttributeValue> referenceAttributes = reference.Attributes as Dictionary<DwarfAttribute, DwarfAttributeValue>;
-
-                        foreach (KeyValuePair<DwarfAttribute, DwarfAttributeValue> kvp in attributes)
-                        {
-                            if (kvp.Key != DwarfAttribute.Specification)
-                            {
-                                referenceAttributes[kvp.Key] = kvp.Value;
-                            }
-                        }
                     }
                 }
             }

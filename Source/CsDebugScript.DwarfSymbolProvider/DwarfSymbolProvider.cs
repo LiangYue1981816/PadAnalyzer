@@ -54,6 +54,27 @@ namespace CsDebugScript.DwarfSymbolProvider
             return null;
         }
 
+        public ISymbolProviderModule LoadModule(string location)
+        {
+            if (File.Exists(location))
+                //try
+                {
+                    using (IDwarfImage image = LoadImage(location, 0))
+                    {
+                        var lineNumberPrograms = new DwarfLineNumberProgram[0];
+                        var commonInformationEntries = ParseCommonInformationEntries(image.DebugFrame, image.EhFrame, new DwarfExceptionHandlingFrameParsingInput(image));
+                        var compilationUnits = ParseCompilationUnits(image.DebugData, image.DebugDataDescription, image.DebugDataStrings, image.NormalizeAddress);
+
+                        if (compilationUnits.Length != 0 || commonInformationEntries.Length != 0)
+                            return new DwarfSymbolProviderModule(location, null, compilationUnits, lineNumberPrograms, commonInformationEntries, image.PublicSymbols, image.CodeSegmentOffset, image.Is64bit);
+                    }
+                }
+                //catch
+                {
+                }
+            return null;
+        }
+
         /// <summary>
         /// Loads the specified image.
         /// </summary>
